@@ -126,6 +126,12 @@ func authAndClassify(resolver Resolver, next http.Handler) http.Handler {
 			return
 		}
 
+		// short-circuit before billing
+		if r.Header.Get("X-Tinfoil-Encryption-Key") == "" {
+			http.Error(w, "missing X-Tinfoil-Encryption-Key header", http.StatusBadRequest)
+			return
+		}
+
 		ctx := withIdentity(r.Context(), id)
 		ctx = withOp(ctx, classify(r))
 		next.ServeHTTP(w, r.WithContext(ctx))

@@ -12,7 +12,10 @@ const (
 	opGetObject               = "get_object"
 	opHeadObject              = "head_object"
 	opDeleteObject            = "delete_object"
+	opDeleteObjects           = "delete_objects"
 	opListObjects             = "list_objects"
+	opHeadBucket              = "head_bucket"
+	opGetBucketLocation       = "get_bucket_location"
 	opCreateMultipartUpload   = "create_multipart_upload"
 	opUploadPart              = "upload_part"
 	opCompleteMultipartUpload = "complete_multipart_upload"
@@ -46,6 +49,8 @@ func classify(r *http.Request) opMeta {
 		switch {
 		case !keyed && q.Has("uploads"):
 			return opMeta{opListMultipartUploads, classA, 0}
+		case !keyed && q.Has("location"):
+			return opMeta{opGetBucketLocation, classB, 0}
 		case !keyed:
 			return opMeta{opListObjects, classA, 0}
 		case q.Has("uploadId"):
@@ -54,6 +59,9 @@ func classify(r *http.Request) opMeta {
 			return opMeta{opGetObject, classB, 0}
 		}
 	case http.MethodHead:
+		if !keyed {
+			return opMeta{opHeadBucket, classB, 0}
+		}
 		return opMeta{opHeadObject, classB, 0}
 	case http.MethodPut:
 		if q.Has("partNumber") && q.Has("uploadId") {
@@ -67,6 +75,9 @@ func classify(r *http.Request) opMeta {
 		case q.Has("uploadId"):
 			// We already report bytes_added per upload_part, so don't double-count.
 			return opMeta{opCompleteMultipartUpload, classA, 0}
+		case !keyed && q.Has("delete"):
+			// Batch DeleteObjects — bills as free like single-object DELETE.
+			return opMeta{opDeleteObjects, classFree, 0}
 		}
 	case http.MethodDelete:
 		if q.Has("uploadId") {
@@ -78,12 +89,15 @@ func classify(r *http.Request) opMeta {
 }
 
 // keyedPath reports whether the URL path addresses an object (/bucket/key...)
-// vs a bucket (/bucket or /).
+// vs a bucket (/bucket, /bucket/, or /). A bare bucket with a trailing slash
+// is still bucket-level — the sidecar routes /{bucket} and /{bucket}/ to the
+// same handlers.
 func keyedPath(p string) bool {
 	if p == "" || p == "/" {
 		return false
 	}
-	return strings.IndexByte(p[1:], '/') >= 0
+	rest := strings.TrimSuffix(p[1:], "/")
+	return strings.IndexByte(rest, '/') >= 0
 }
 
 func contentLength(r *http.Request) uint64 {
