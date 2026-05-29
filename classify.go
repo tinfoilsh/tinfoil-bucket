@@ -50,7 +50,7 @@ func classify(r *http.Request) opMeta {
 		case !keyed && q.Has("uploads"):
 			return opMeta{opListMultipartUploads, classA, 0}
 		case !keyed && q.Has("location"):
-			return opMeta{opGetBucketLocation, classB, 0}
+			return opMeta{opGetBucketLocation, classFree, 0}
 		case !keyed:
 			return opMeta{opListObjects, classA, 0}
 		case q.Has("uploadId"):
@@ -60,7 +60,7 @@ func classify(r *http.Request) opMeta {
 		}
 	case http.MethodHead:
 		if !keyed {
-			return opMeta{opHeadBucket, classB, 0}
+			return opMeta{opHeadBucket, classFree, 0}
 		}
 		return opMeta{opHeadObject, classB, 0}
 	case http.MethodPut:
