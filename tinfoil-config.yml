@@ -3,8 +3,8 @@ cpus: 4
 memory: 32768
 
 containers:
-  - name: "frontend"
-    image: "ghcr.io/tinfoilsh/tinfoil-bucket:TODO" # built from this repo
+  - name: "proxy"
+    image: "ghcr.io/tinfoilsh/tinfoil-bucket:000000" # built from this repo
     env:
       - LISTEN_ADDR: ":8080"
       - CONTROL_PLANE_URL: "https://api.tinfoil.sh"
@@ -13,7 +13,6 @@ containers:
       - USAGE_REPORTER_SECRET
 
   - name: "buckets"
-    # TODO: bump to the multitenant sidecar
     image: "ghcr.io/tinfoilsh/tinfoil-buckets-sidecar@sha256:7fd00873d80e9e597373d05ca896370e6b7ce26f168bc2f904618fa395559aff" # v0.0.3
     env:
       - PORT: "9000"
