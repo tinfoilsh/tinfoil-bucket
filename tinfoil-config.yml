@@ -3,19 +3,27 @@ cpus: 4
 memory: 32768
 
 containers:
-  - name: "TODO"
+  - name: "proxy"
+    image: "ghcr.io/tinfoilsh/tinfoil-bucket:000000" # built from this repo
+    env:
+      - LISTEN_ADDR: ":8080"
+      - CONTROL_PLANE_URL: "https://api.tinfoil.sh"
+      - USAGE_REPORTER_ID: "tinfoil-bucket"
+    secrets:
+      - USAGE_REPORTER_SECRET
 
   - name: "buckets"
-    image: "ghcr.io/tinfoilsh/tinfoil-buckets-sidecar@sha256:7fd00873d80e9e597373d05ca896370e6b7ce26f168bc2f904618fa395559aff" # v0.0.3
+    image: "ghcr.io/tinfoilsh/tinfoil-buckets-sidecar@sha256:72d3fa901c933e62a92999c296c42eb709ca9425b582ff66b285a5c3dd6bda8a" # v0.0.4
     env:
       - PORT: "9000"
       - BUCKET: "tinfoil-bucket-273354634536-us-east-2-an"
       - AWS_REGION: "us-east-2"
+      - MULTITENANT: "true"
     secrets:
-      - ENCRYPTION_KEY
       - AWS_ACCESS_KEY_ID
       - AWS_SECRET_ACCESS_KEY
 
 shim:
   upstream-port: 8080
-  paths: TODO
+  paths:
+    - /*
