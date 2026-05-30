@@ -18,8 +18,6 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"strings"
-
-	usagereporting "github.com/tinfoilsh/usage-reporting-go"
 )
 
 type ctxKey int
@@ -87,16 +85,7 @@ func NewProxy(resolver Resolver, reporter *Reporter) (http.Handler, error) {
 			return nil
 		}
 		id, _ := identityFromCtx(resp.Request.Context())
-
-		var meters []usagereporting.Meter
-		if op.BytesAdded > 0 {
-			meters = BytesAdded(op.BytesAdded)
-		}
-		// TODO(bytes_removed): when the sidecar surfaces deleted-object size on
-		// DELETE responses (e.g. X-Tinfoil-Bytes-Removed), wire it in here:
-		//   if n := resp.Header.Get("X-Tinfoil-Bytes-Removed"); n != "" { ... BytesRemoved(...) }
-
-		reporter.ReportOperation(resp.Request, id, op.Name, op.Class, meters, nil)
+		reporter.ReportOperation(resp.Request, id, op.Name, op.Class, nil)
 		return nil
 	}
 	rp.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {

@@ -32,9 +32,8 @@ const (
 )
 
 type opMeta struct {
-	Name       string
-	Class      string
-	BytesAdded uint64
+	Name  string
+	Class string
 }
 
 // classify maps an inbound S3-style request to one of our op labels.
@@ -48,44 +47,42 @@ func classify(r *http.Request) opMeta {
 	case http.MethodGet:
 		switch {
 		case !keyed && q.Has("uploads"):
-			return opMeta{opListMultipartUploads, classA, 0}
+			return opMeta{opListMultipartUploads, classA}
 		case !keyed && q.Has("location"):
-			return opMeta{opGetBucketLocation, classFree, 0}
+			return opMeta{opGetBucketLocation, classFree}
 		case !keyed:
-			return opMeta{opListObjects, classA, 0}
+			return opMeta{opListObjects, classA}
 		case q.Has("uploadId"):
-			return opMeta{opListParts, classA, 0}
+			return opMeta{opListParts, classA}
 		default:
-			return opMeta{opGetObject, classB, 0}
+			return opMeta{opGetObject, classB}
 		}
 	case http.MethodHead:
 		if !keyed {
-			return opMeta{opHeadBucket, classFree, 0}
+			return opMeta{opHeadBucket, classFree}
 		}
-		return opMeta{opHeadObject, classB, 0}
+		return opMeta{opHeadObject, classB}
 	case http.MethodPut:
 		if q.Has("partNumber") && q.Has("uploadId") {
-			return opMeta{opUploadPart, classA, contentLength(r)}
+			return opMeta{opUploadPart, classA}
 		}
-		return opMeta{opPutObject, classA, contentLength(r)}
+		return opMeta{opPutObject, classA}
 	case http.MethodPost:
 		switch {
 		case q.Has("uploads"):
-			return opMeta{opCreateMultipartUpload, classA, 0}
+			return opMeta{opCreateMultipartUpload, classA}
 		case q.Has("uploadId"):
-			// We already report bytes_added per upload_part, so don't double-count.
-			return opMeta{opCompleteMultipartUpload, classA, 0}
+			return opMeta{opCompleteMultipartUpload, classA}
 		case !keyed && q.Has("delete"):
-			// Batch DeleteObjects — bills as free like single-object DELETE.
-			return opMeta{opDeleteObjects, classFree, 0}
+			return opMeta{opDeleteObjects, classFree}
 		}
 	case http.MethodDelete:
 		if q.Has("uploadId") {
-			return opMeta{opAbortMultipartUpload, classFree, 0}
+			return opMeta{opAbortMultipartUpload, classFree}
 		}
-		return opMeta{opDeleteObject, classFree, 0}
+		return opMeta{opDeleteObject, classFree}
 	}
-	return opMeta{opUnknown, "", 0}
+	return opMeta{opUnknown, ""}
 }
 
 // keyedPath reports whether the URL path addresses an object (/bucket/key...)
@@ -98,11 +95,4 @@ func keyedPath(p string) bool {
 	}
 	rest := strings.TrimSuffix(p[1:], "/")
 	return strings.IndexByte(rest, '/') >= 0
-}
-
-func contentLength(r *http.Request) uint64 {
-	if r.ContentLength <= 0 {
-		return 0
-	}
-	return uint64(r.ContentLength)
 }

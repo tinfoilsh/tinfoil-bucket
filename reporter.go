@@ -12,28 +12,6 @@ import (
 	usageclient "github.com/tinfoilsh/usage-reporting-go/client"
 )
 
-// Meter names. bytes_added / bytes_removed are forward-only deltas — the
-// controlplane sums them per tenant to track GB-hour usage without listing
-// the backing bucket.
-const (
-	meterBytesAdded   = "bytes_added"
-	meterBytesRemoved = "bytes_removed"
-)
-
-func BytesAdded(n uint64) []usagereporting.Meter {
-	if n == 0 {
-		return nil
-	}
-	return []usagereporting.Meter{{Name: meterBytesAdded, Quantity: int64(n)}}
-}
-
-func BytesRemoved(n uint64) []usagereporting.Meter {
-	if n == 0 {
-		return nil
-	}
-	return []usagereporting.Meter{{Name: meterBytesRemoved, Quantity: int64(n)}}
-}
-
 type Reporter struct {
 	client *usageclient.ReporterClient
 }
@@ -75,9 +53,10 @@ func validateEndpoint(endpoint string) error {
 
 // ReportOperation emits one usage event. CustomerRequests=1 + Operation.Class
 // drive flat per-class pricing; Operation.Name is the granular audit label.
-// Meters carry storage byte deltas. The bearer API key is the owner-attribution
-// key for billing; the resolved user_id rides as an attribute for observability.
-func (r *Reporter) ReportOperation(req *http.Request, id Identity, operationName, class string, meters []usagereporting.Meter, attributes map[string]string) {
+// Storage-at-rest is billed by S3 directly, so we don't ship byte meters.
+// The bearer API key is the owner-attribution key for billing; the resolved
+// user_id rides as an attribute for observability.
+func (r *Reporter) ReportOperation(req *http.Request, id Identity, operationName, class string, attributes map[string]string) {
 	if r == nil || r.client == nil || !r.client.Enabled() {
 		return
 	}
@@ -100,7 +79,6 @@ func (r *Reporter) ReportOperation(req *http.Request, id Identity, operationName
 			Class:   class,
 		},
 		CustomerRequests: 1,
-		Meters:           meters,
 		Attributes:       attrs,
 	})
 }
