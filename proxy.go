@@ -58,6 +58,10 @@ func tenantIDFor(id Identity) string {
 // run in the enclave's shared network namespace, so this is always loopback.
 const sidecarURL = "http://localhost:9000"
 
+// NewProxy returns the assembled middleware → ReverseProxy handler. The
+// internal ReverseProxy hooks read Identity and opMeta from the request
+// context — that contract is enforced by authAndClassify, which is the
+// only caller that should ever wrap the inner proxy.
 func NewProxy(resolver Resolver, reporter *Reporter) (http.Handler, error) {
 	target, err := url.Parse(sidecarURL)
 	if err != nil {
@@ -134,6 +138,13 @@ func authAndClassify(resolver Resolver, next http.Handler) http.Handler {
 
 		ctx := withIdentity(r.Context(), id)
 		ctx = withOp(ctx, classify(r))
+
+		// Tripwire: empty Identity → tenant id "user-", shared anon namespace.
+		if _, ok := identityFromCtx(ctx); !ok {
+			http.Error(w, "internal: identity not populated", http.StatusInternalServerError)
+			return
+		}
+
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
