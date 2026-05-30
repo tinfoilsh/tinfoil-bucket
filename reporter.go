@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"net/http"
 	"net/url"
 	"strings"
 	"time"
@@ -54,22 +53,15 @@ func validateEndpoint(endpoint string) error {
 // ReportOperation emits one usage event. CustomerRequests=1 + Operation.Class
 // drive flat per-class pricing; Operation.Name is the granular audit label.
 // Storage-at-rest is billed by S3 directly, so we don't ship byte meters.
-// The bearer API key is the owner-attribution key for billing; the resolved
-// user_id rides as an attribute for observability.
-func (r *Reporter) ReportOperation(req *http.Request, id Identity, operationName, class string, attributes map[string]string) {
+// apiKey is the owner-attribution key — the controlplane resolves it to a
+// user_id on its side, so we don't need to ship that on the event.
+func (r *Reporter) ReportOperation(apiKey, operationName, class string) {
 	if r == nil || r.client == nil || !r.client.Enabled() {
 		return
 	}
-	apiKey, err := bearerToken(req.Header.Get("Authorization"))
-	if err != nil || apiKey == "" {
+	if apiKey == "" {
 		return
 	}
-
-	attrs := map[string]string{"user_id": id.UserID}
-	for k, v := range attributes {
-		attrs[k] = v
-	}
-
 	r.client.AddEvent(usagereporting.Event{
 		OccurredAt: time.Now().UTC(),
 		APIKey:     apiKey,
@@ -79,7 +71,6 @@ func (r *Reporter) ReportOperation(req *http.Request, id Identity, operationName
 			Class:   class,
 		},
 		CustomerRequests: 1,
-		Attributes:       attrs,
 	})
 }
 

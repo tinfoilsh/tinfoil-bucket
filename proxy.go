@@ -4,7 +4,7 @@
 //
 //  1. authAndClassify: validate the bearer against controlplane → Identity{UserID},
 //     then label the operation. Both are stashed on r.Context().
-//  2. ReverseProxy.Director: strip the inbound bearer (sidecar doesn't need it),
+//  2. ReverseProxy.Rewrite: strip the inbound bearer (sidecar doesn't need it),
 //     stamp X-Tinfoil-Tenant-Id from the validated identity (never trust the
 //     client's value), pass X-Tinfoil-Encryption-Key through unchanged.
 //  3. ReverseProxy.ModifyResponse: on 2xx, emit one usage event.
@@ -25,6 +25,7 @@ type ctxKey int
 const (
 	ctxKeyIdentity ctxKey = iota
 	ctxKeyOp
+	ctxKeyAPIKey
 )
 
 func withIdentity(ctx context.Context, id Identity) context.Context {
@@ -43,6 +44,15 @@ func withOp(ctx context.Context, op opMeta) context.Context {
 func opFromCtx(ctx context.Context) (opMeta, bool) {
 	v, ok := ctx.Value(ctxKeyOp).(opMeta)
 	return v, ok
+}
+
+func withAPIKey(ctx context.Context, k string) context.Context {
+	return context.WithValue(ctx, ctxKeyAPIKey, k)
+}
+
+func apiKeyFromCtx(ctx context.Context) string {
+	v, _ := ctx.Value(ctxKeyAPIKey).(string)
+	return v
 }
 
 // tenantIDFor derives the sidecar tenant id from the resolved identity.
@@ -84,8 +94,8 @@ func NewProxy(resolver Resolver, reporter *Reporter) (http.Handler, error) {
 		if !ok {
 			return nil
 		}
-		id, _ := identityFromCtx(resp.Request.Context())
-		reporter.ReportOperation(resp.Request, id, op.Name, op.Class, nil)
+		apiKey := apiKeyFromCtx(resp.Request.Context())
+		reporter.ReportOperation(apiKey, op.Name, op.Class)
 		return nil
 	}
 	rp.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
@@ -125,7 +135,8 @@ func authAndClassify(resolver Resolver, next http.Handler) http.Handler {
 			return
 		}
 
-		ctx := withIdentity(r.Context(), id)
+		ctx := withAPIKey(r.Context(), apiKey)
+		ctx = withIdentity(ctx, id)
 		ctx = withOp(ctx, classify(r))
 
 		// Tripwire: empty Identity → tenant id "user-", shared anon namespace.
