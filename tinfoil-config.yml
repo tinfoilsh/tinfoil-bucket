@@ -4,7 +4,7 @@ memory: 32768
 
 containers:
   - name: "proxy"
-    image: "ghcr.io/tinfoilsh/tinfoil-bucket:000000" # built from this repo
+    image: "ghcr.io/tinfoilsh/tinfoil-bucket@sha256:9f85261a4b48d077bffe394eb5316ff5eb0673dc79883fe7fdb3131d856a5e89" # v0.0.2
     env:
       - LISTEN_ADDR: ":8080"
       - CONTROL_PLANE_URL: "https://api.tinfoil.sh"
