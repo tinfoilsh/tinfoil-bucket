@@ -1,7 +1,6 @@
 cvm-version: 0.7.5
-cpus: 4
+cpus: 8
 memory: 32768
-
 containers:
   - name: "proxy"
     image: "ghcr.io/tinfoilsh/tinfoil-bucket:000000" # built from this repo
@@ -11,7 +10,6 @@ containers:
       - USAGE_REPORTER_ID: "tinfoil-bucket"
     secrets:
       - USAGE_REPORTER_SECRET
-
   - name: "buckets"
     image: "ghcr.io/tinfoilsh/tinfoil-buckets-sidecar@sha256:a0f5fd6a3dbdb0a95799ae687e127bb544b7998221458ae1face3fc8c3f43f30" # v0.0.5
     env:
@@ -22,8 +20,8 @@ containers:
     secrets:
       - AWS_ACCESS_KEY_ID
       - AWS_SECRET_ACCESS_KEY
-
 shim:
   upstream-port: 8080
   paths:
     - /*
+gpus: 0
